@@ -1,12 +1,13 @@
 //Styling variables
+var margin_left = 30;
+var margin_top = 30;
 var width = $(window).width()-15;
 var height = $(window).height()-15;
 var box_x_margin = 100;
 var box_y_margin = 30;
 var box_w = 100;
-var box_h = 50;
-var margin_left = 30;
-var margin_top = 30;
+var box_h = 30;
+
 
 //all data retrieved from csv files
 var links = [];
@@ -56,6 +57,9 @@ d3.csv("nodes.csv", function (error1, data1) {
             links.push(temp);
         })
 
+        //Reconfigure the distance between boxes to fit the data
+        reconfigure_col_space();
+        reconfigure_row_space();
         
         //Draw node rectangles
         var boxes = svg.selectAll("rect")
@@ -120,7 +124,7 @@ d3.csv("nodes.csv", function (error1, data1) {
 });
     
 //Input: Protein name (from links array)
-//Output: Index of that protein in the nodes array
+//Output: Returns index of that protein in the nodes array
 function find_protein (protein) {
 
     for (var i = 0; i < nodes.length; i++) {
@@ -132,7 +136,45 @@ function find_protein (protein) {
     return -1;
 }
 
+function reconfigure_row_space() {
+    var num_rows = find_max_row();
+    var used_space = (margin_top*2) + (box_h * num_rows) + 30;
+    box_y_margin = (height - used_space) / (num_rows-1);
+}
 
+function reconfigure_col_space() {
+    var num_cols = find_max_col();
+    var used_space = (margin_left*2) + (box_w * num_cols) + 30;
+    box_x_margin = (width - used_space) / (num_cols-1);
+}
+
+//Input: none (uses global nodes array)
+//Output: returns the maximum number of rows the given dataset may have 
+function find_max_row () {
+    var max = 0;
+    for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i].row > max) {
+            max = nodes[i].row;
+        }
+    }
+
+    //+1 because rows are 0-indexed
+    return max + 1;
+}
+
+//Input: none (uses global nodes array)
+//Output: returns the maximum number of columns the given dataset may have 
+function find_max_col() {
+    var max = 0;
+    for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i].col > max) {
+            max = nodes[i].col;
+        }
+    }
+
+    //+1 because columns are 0-indexed
+    return max + 1;
+}
 
 // // CODE FOR IMMEDIATE SVG LOAD--------------------------------------------
 // d3.xml("KRAS_ELK1_v7_time2.svg").mimeType("image/svg+xml").get(function(error, xml) {
