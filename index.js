@@ -1,15 +1,21 @@
-//Styling variables
-var margin_left = 30;
-var margin_top = 30;
+//padding from edge of svg canvas to where diagram starts
+var padding_left = 100;
+var padding_top = 100;
+
+//size of svg
 var width = $(window).width()-15;
 var height = $(window).height()-15;
+
+//margin between boxes
 var box_x_margin = 100;
 var box_y_margin = 30;
+
+//size of boxes
 var box_w = 100;
 var box_h = 30;
 
 
-//all data retrieved from csv files
+//all data retrieved from csv files and will fill these arrays
 var links = [];
 var nodes = [];
 
@@ -21,7 +27,7 @@ var svg = d3.select("body")
             .attr("id", "svg")
             .attr("style", "background:#EFEFEF");
 
-//Get data from the files
+//Get data from the files and put into arrays links and nodes, respectively
 d3.csv("nodes.csv", function (error1, data1) {
     d3.csv("links.csv", function (error2, data2) {
         
@@ -68,10 +74,10 @@ d3.csv("nodes.csv", function (error1, data1) {
                 .append("rect")
                 .attr("x", function (d) {
                     console.log("drawing box");
-                    return (d.col * (box_w + box_x_margin)+margin_left);
+                    return (d.col * (box_w + box_x_margin)+padding_left);
                 })
                 .attr("y", function (d, i) {
-                    return (d.row * (box_h + box_y_margin)+margin_top);
+                    return (d.row * (box_h + box_y_margin)+padding_top);
                 })
                 .attr("rx", 5)
                 .attr("ry", 5)
@@ -86,10 +92,10 @@ d3.csv("nodes.csv", function (error1, data1) {
                 .enter()
                 .append("text")
                 .attr("x", function (d) {
-                    return (d.col * (box_w + box_x_margin) + 20 + margin_left);
+                    return (d.col * (box_w + box_x_margin) + 20 + padding_left);
                 })
                 .attr("y", function (d) {
-                    return (d.row * (box_h + box_y_margin) + box_h/2 + margin_top);
+                    return (d.row * (box_h + box_y_margin) + box_h/2 + padding_top);
                 })
                 .text(function (d) {
                     return d.protein;
@@ -98,33 +104,73 @@ d3.csv("nodes.csv", function (error1, data1) {
                 .style("font-family", "Arial");
         
         //Straight line links between nodes
-        var lines = svg.selectAll("line")
+        // var lines = svg.selectAll("line")
+        //         .data(links)
+        //         .enter()
+        //         .append("line")
+        //         .attr("x1", function (d) {
+        //             var idx_in = find_protein(d.protein1);
+        //             return (nodes[idx_in].col * (box_w+box_x_margin) + padding_left +box_w);
+        //         })
+        //         .attr("y1", function (d) {
+        //             var idx_in = find_protein(d.protein1);
+        //             return (nodes[idx_in].row*(box_h+box_y_margin) + padding_top+(box_h/2));
+        //         })
+        //         .attr("x2", function (d) {
+        //             var idx_out = find_protein(d.protein2);
+        //             return (nodes[idx_out].col * (box_w+box_x_margin) + padding_left);
+        //         })
+        //         .attr("y2", function (d) {
+        //             var idx_out = find_protein(d.protein2);
+        //             return (nodes[idx_out].row*(box_h+box_y_margin)+padding_top+(box_h/2));
+        //         })
+        //         .attr("stroke", "#000000");
+
+        var cubic_lines = svg.selectAll("path")
                 .data(links)
                 .enter()
-                .append("line")
-                .attr("x1", function (d) {
+                .append("path")
+                .attr("d", function (d, i) {
                     var idx_in = find_protein(d.protein1);
-                    return (nodes[idx_in].col * (box_w+box_x_margin) + margin_left +box_w);
-                })
-                .attr("y1", function (d) {
-                    var idx_in = find_protein(d.protein1);
-                    return (nodes[idx_in].row*(box_h+box_y_margin) + margin_top+(box_h/2));
-                })
-                .attr("x2", function (d) {
                     var idx_out = find_protein(d.protein2);
-                    return (nodes[idx_out].col * (box_w+box_x_margin) + margin_left);
+                    var startx = nodes[idx_in].col * (box_w+box_x_margin) + padding_left + box_w;
+                    var starty = nodes[idx_in].row*(box_h+box_y_margin) + padding_top+(box_h/2);
+                    var endx = nodes[idx_out].col * (box_w+box_x_margin) + padding_left;
+                    var endy = nodes[idx_out].row*(box_h+box_y_margin)+padding_top+(box_h/2);
+
+                    return get_cubic_path ([startx, starty], [endx, endy]);
                 })
-                .attr("y2", function (d) {
-                    var idx_out = find_protein(d.protein2);
-                    return (nodes[idx_out].row*(box_h+box_y_margin)+margin_top+(box_h/2));
-                })
+                .attr("fill", "none")
                 .attr("stroke", "#000000");
+
         
     });
 });
+
+function get_cubic_path (start, end) {
+    var x0 = start[0],
+        y0 = start[1],
+
+        x1 = end[0],
+        y1 = end[1],
+
+        xi = d3.interpolateNumber(x0, x1),
+        
+        x2 = xi(0.5),
+        y2 = y0, 
+
+        x3 = x2, 
+        y3 = y1;        
+
+        //Mx0,y0 Cx2,y2 x3,y3 x1,y1
+    return "M" + x0 + "," + y0 + 
+           " C" + x2 + "," + y2 + " " + 
+                x3 + "," + y3 + " " +
+                x1 + "," + y1;
+}
     
 //Input: Protein name (from links array)
-//Output: Returns index of that protein in the nodes array
+//Output: Returns index of that protein in the nodes array or -1 if not found
 function find_protein (protein) {
 
     for (var i = 0; i < nodes.length; i++) {
@@ -136,15 +182,19 @@ function find_protein (protein) {
     return -1;
 }
 
+//CAN PROBABLY BE REPLACED W D3.LINEAR.SCALE
+
+//resets box_y_margin (space between rows) to fit all nodes in one column
 function reconfigure_row_space() {
     var num_rows = find_max_row();
-    var used_space = (margin_top*2) + (box_h * num_rows) + 30;
+    var used_space = (padding_top*2) + (box_h * num_rows) + 30;
     box_y_margin = (height - used_space) / (num_rows-1);
 }
 
+//resets box_x_margin (space between cols) to fit all nodes in one row
 function reconfigure_col_space() {
     var num_cols = find_max_col();
-    var used_space = (margin_left*2) + (box_w * num_cols) + 30;
+    var used_space = (padding_left*2) + (box_w * num_cols) + 30;
     box_x_margin = (width - used_space) / (num_cols-1);
 }
 
