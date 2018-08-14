@@ -126,6 +126,8 @@ d3.csv("nodes.csv", function (error1, data1) {
         //         })
         //         .attr("stroke", "#000000");
 
+        //Create bezier curves from start to end nodes
+        //Created with help from: https://bl.ocks.org/PerterB/3ace54f8a5584f51f9d8
         var cubic_lines = svg.selectAll("path")
                 .data(links)
                 .enter()
