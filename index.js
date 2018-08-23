@@ -1,6 +1,6 @@
 //padding from edge of svg canvas to where diagram starts
-var padding_left = 100;
-var padding_top = 100;
+var padding_left = 50;
+var padding_top = 50;
 
 //size of svg
 var width = $(window).width()-15;
@@ -18,6 +18,11 @@ var box_h = 30;
 //all data retrieved from csv files and will fill these arrays
 var links = [];
 var nodes = [];
+var atlas = [];
+
+//column with the most nodes (i.e., highest number of rows in a column)
+var longest_col = 0;
+var most_rows = 0;
 
 //Append an SVG to document body
 var svg = d3.select("body")
@@ -30,22 +35,37 @@ var svg = d3.select("body")
 //Get data from the files and put into arrays links and nodes, respectively
 d3.csv("nodes.csv", function (error1, data1) {
     d3.csv("links.csv", function (error2, data2) {
+        d3.csv("atlas.csv", function (error3, data3) {
         
         //Throw error if data not found or something else
-        if (error1 || error2) {
+        if (error1 || error2 || error3) {
             throw error;
         }
+
+        data3.forEach (function (d) {
+            var temp = {
+                justify: parseInt(d.justify)
+            };
+
+            atlas.push(temp);
+        })
 
         //Input: nodes.csv
         //Output: nodes array filled with info from nodes.csv
         data1.forEach(function (d) {
             var temp = {
                 protein: d.protein,
-                col: parseInt(d.col),
-                row: parseInt(d.row)
+                col: parseFloat(d.col),
+                row: parseFloat(d.row)
             };
         
             nodes.push(temp);
+
+            //update most_rows and longest_col if current one is higher
+            if (temp.row > most_rows) {
+                most_rows = temp.row;
+                longest_col = temp.col;
+            }
         })
 
         console.log(nodes);
@@ -62,6 +82,15 @@ d3.csv("nodes.csv", function (error1, data1) {
         
             links.push(temp);
         })
+
+        //Check if nodes need to be shifted based on what was uploaded for justify
+        //0 = top weighted
+        //1 = center weighted
+        if (atlas[0].justify == 1) {
+
+            reconfigure_alignment();
+            
+        }
 
         //Reconfigure the distance between boxes to fit the data
         reconfigure_col_space();
@@ -92,10 +121,10 @@ d3.csv("nodes.csv", function (error1, data1) {
                 .enter()
                 .append("text")
                 .attr("x", function (d) {
-                    return (d.col * (box_w + box_x_margin) + 20 + padding_left);
+                    return (d.col * (box_w + box_x_margin) + 13 + padding_left);
                 })
                 .attr("y", function (d) {
-                    return (d.row * (box_h + box_y_margin) + box_h/2 + padding_top);
+                    return (d.row * (box_h + box_y_margin) + box_h/2 + 5 + padding_top);
                 })
                 .text(function (d) {
                     return d.protein;
@@ -143,9 +172,10 @@ d3.csv("nodes.csv", function (error1, data1) {
                     return get_cubic_path ([startx, starty], [endx, endy]);
                 })
                 .attr("fill", "none")
-                .attr("stroke", "#000000");
+                .attr("stroke", "#000000")
+                ;
 
-        
+            }); 
     });
 });
 
@@ -226,6 +256,59 @@ function find_max_col() {
 
     //+1 because columns are 0-indexed
     return max + 1;
+}
+
+function reconfigure_alignment() {
+    
+    var longest_col_length = find_col_length(longest_col);
+ 
+    //midpoint of the longest column (mpl)
+    var mpl = (longest_col_length - 1) / 2;
+    console.log("midpoint of longest col = " + mpl);
+    
+    //For each remaining column: 
+        //Find midpoint of curr_col
+        //shift = mid_longest - mid_current
+        //Add shift to every row value for that column
+
+    
+}
+
+//takes a column index and finds the length of it
+function find_col_length (column) {
+    
+    //index in the nodes array where column starts
+    var col_start;
+    var col_end;
+    var col_length;
+    
+    //iterate through nodes array until you find the 
+    //index of the first node of the column
+    for (var i = 0; i < nodes.length; i++) {
+        if (nodes[i].col == column) {
+            col_start = i;
+            console.log("col_start = " + col_start);
+            break;
+        }
+    }
+
+    //find the index of the last node in the column
+    for (var i = col_start; i < nodes.length; i++) {
+        //stop searching through array once we are not looking at the same column
+        if (nodes[i].col != column) {
+            break;
+        }
+
+        col_end = i;
+    }
+
+    console.log("col_end = " + col_end);
+
+    //calculate length of the column
+    col_length = col_end - col_start + 1;
+    console.log("col_length = " + col_length);
+
+    return col_length;
 }
 
 // // CODE FOR IMMEDIATE SVG LOAD--------------------------------------------
