@@ -271,7 +271,36 @@ function reconfigure_alignment() {
         //shift = mid_longest - mid_current
         //Add shift to every row value for that column
 
-    
+    var curr_col = -1;
+    var shift;
+
+    for (var i = 0; i < nodes.length; i++) {
+        //skip if curr col == longest_col (bc already found longest col)
+        if (curr_col == longest_col) {
+            continue;
+        }
+
+        //reset when you get to a new column value
+        //find a new shift value
+        if (curr_col != nodes[i].col) {
+            //set current column equal to this column
+            curr_col = nodes[i].col;
+
+            //find curr col length
+            var col_length = find_col_length(curr_col);
+            //find curr col midpoint
+            var mpc = (col_length - 1) / 2;
+            console.log("mp of curr col = " + mpc);
+            shift = mpl - mpc;
+        }
+
+        //shift all row values for this column
+        if (curr_col == nodes[i].col) {
+            nodes[i].row += shift;
+        }
+
+        
+    }
 }
 
 //takes a column index and finds the length of it
