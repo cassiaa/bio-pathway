@@ -1,2 +1,5 @@
-justify
-1
+mod,val
+justify,1
+link_weight,2
+link_color,#2b9758
+link_gradient,1

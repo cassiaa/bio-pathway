@@ -1,3 +1,5 @@
+//GLOBAL VARIABLES-------------------------------------------------------------------
+
 //padding from edge of svg canvas to where diagram starts
 var padding_left = 50;
 var padding_top = 50;
@@ -24,19 +26,26 @@ var atlas = [];
 var longest_col = 0;
 var most_rows = 0;
 
+//variables retrieved from atlas file
+var link_weight = 1;
+var link_color = "#000000";
+var link_gradient = 0;
+
 //Append an SVG to document body
 var svg = d3.select("body")
             .append("svg")
             .attr("width", width)
             .attr("height", height)
             .attr("id", "svg")
-            .attr("style", "background:#EFEFEF");
+            .attr("style", "background:#020202");
 
 //Get data from the files and put into arrays links and nodes, respectively
 d3.csv("nodes.csv", function (error1, data1) {
     d3.csv("links.csv", function (error2, data2) {
         d3.csv("atlas.csv", function (error3, data3) {
         
+        //LOAD DATA------------------------------------------------------------------
+
         //Throw error if data not found or something else
         if (error1 || error2 || error3) {
             throw error;
@@ -44,11 +53,15 @@ d3.csv("nodes.csv", function (error1, data1) {
 
         data3.forEach (function (d) {
             var temp = {
-                justify: parseInt(d.justify)
+                mod: d.mod,
+                val: d.val
             };
 
+            console.log(temp.val);
             atlas.push(temp);
         })
+
+        console.log(atlas);
 
         //Input: nodes.csv
         //Output: nodes array filled with info from nodes.csv
@@ -83,54 +96,50 @@ d3.csv("nodes.csv", function (error1, data1) {
             links.push(temp);
         })
 
-        //Check if nodes need to be shifted based on what was uploaded for justify
-        //0 = top weighted
-        //1 = center weighted
-        if (atlas[0].justify == 1) {
-
-            reconfigure_alignment();
+        //UPDATE OPTIONS BASED ON ATLAS INPUTS & DATA---------------------------------
+        for (var i = 0; i < atlas.length; i++) {
             
+            var curr = atlas[i];
+            
+            //JUSTIFY: whether the nodes are weighted at the top or the center
+            //0 = top-weighted
+            //1 = center-weighted
+            if (curr.mod === "justify") {
+                if (curr.val == 1) {
+                    reconfigure_alignment();
+                }
+            }
+
+            //LINK_WEIGHT: determines the stroke-width of the link
+            //val = how wide link is in px
+            //1 : use default value
+            //!1 : use link weights in link file
+            if (curr.mod === "link_weight") {
+                console.log("inside link_weight");
+                link_weight = curr.val;
+            }
+
+            //LINK_COLOR: determines color of links between nodes
+            //input is a hex value (default: #000000)
+            if (curr.mod === "link_color") {
+                link_color = curr.val;
+            }
+
+            //LINK_GRADIENT: determines if links will be solid or mapped to color gradient based on link wgt
+            //0 : solid color (default)
+            //1 : use gradient
+            if (curr.mod == "link_gradient") {
+                link_gradient = curr.val;
+                console.log("gradient: " + link_gradient);
+            }
+
         }
 
         //Reconfigure the distance between boxes to fit the data
         reconfigure_col_space();
         reconfigure_row_space();
-        
-        //Draw node rectangles
-        var boxes = svg.selectAll("rect")
-                .data(nodes)
-                .enter()
-                .append("rect")
-                .attr("x", function (d) {
-                    console.log("drawing box");
-                    return (d.col * (box_w + box_x_margin)+padding_left);
-                })
-                .attr("y", function (d, i) {
-                    return (d.row * (box_h + box_y_margin)+padding_top);
-                })
-                .attr("rx", 5)
-                .attr("ry", 5)
-                .attr("width", box_w)
-                .attr("height", box_h)
-                .style("fill", "#FFFFFF")
-                .style("stroke", "darkgray");
-        
-        //Text for nodes
-        var box_text = svg.selectAll("text")
-                .data(nodes)
-                .enter()
-                .append("text")
-                .attr("x", function (d) {
-                    return (d.col * (box_w + box_x_margin) + 13 + padding_left);
-                })
-                .attr("y", function (d) {
-                    return (d.row * (box_h + box_y_margin) + box_h/2 + 5 + padding_top);
-                })
-                .text(function (d) {
-                    return d.protein;
-                })
-                .style("font-size", "12px")
-                .style("font-family", "Arial");
+
+        //DRAW SVG ELEMENTS---------------------------------------------------------
         
         //Straight line links between nodes
         // var lines = svg.selectAll("line")
@@ -157,6 +166,16 @@ d3.csv("nodes.csv", function (error1, data1) {
 
         //Create bezier curves from start to end nodes
         //Created with help from: https://bl.ocks.org/PerterB/3ace54f8a5584f51f9d8
+
+        //calculate highest weight first
+        var max = -1;
+        for (var i = 0; i < links.length; i++) {
+            if (Math.abs(links[i].weight2) > max) {
+                max = Math.abs(links[i].weight2);
+            }
+        }
+        console.log("max = " + max);
+
         var cubic_lines = svg.selectAll("path")
                 .data(links)
                 .enter()
@@ -172,12 +191,74 @@ d3.csv("nodes.csv", function (error1, data1) {
                     return get_cubic_path ([startx, starty], [endx, endy]);
                 })
                 .attr("fill", "none")
-                .attr("stroke", "#000000")
+                .attr("stroke-width", function (d) {
+                    if (link_weight == 1) {
+                        return link_weight;
+                    } else {
+                        return Math.abs(d.weight2) * 3;
+                    }
+                })
+                .attr("stroke", function (d) {
+                    if (link_gradient == 0) {
+                        return (link_color);
+                    } else {
+
+                        //TODO: Must change so it doesn't hardcode domain
+
+                        var num_scale = d3.scaleLinear() 
+                            .domain([0,max])
+                            .range([0,1]);
+                        var num = num_scale(Math.abs(d.weight2));
+                        //var num = d3.interpolateNumber(0,3.5)(Math.abs(d.weight2));
+                        var rgb = d3.interpolateRgb("#ffffff", link_color)(num);
+                        return rgb;
+                    }
+                })
                 ;
+
+        //Draw node rectangles
+        var boxes = svg.selectAll("rect")
+                .data(nodes)
+                .enter()
+                .append("rect")
+                .attr("x", function (d) {
+                    console.log("drawing box");
+                    return (d.col * (box_w + box_x_margin)+padding_left);
+                })
+                .attr("y", function (d) {
+                    return (d.row * (box_h + box_y_margin)+padding_top);
+                })
+                .attr("rx", 5)
+                .attr("ry", 5)
+                .attr("width", box_w)
+                .attr("height", box_h)
+                .style("fill", "#FFFFFF")
+                .style("stroke", "darkgray");
+        
+        //Text for nodes
+        var box_text = svg.selectAll("text")
+                .data(nodes)
+                .enter()
+                .append("text")
+                .attr("x", function (d) {
+                    return (d.col * (box_w + box_x_margin) + 13 + padding_left);
+                })
+                .attr("y", function (d) {
+                    return (d.row * (box_h + box_y_margin) + box_h/2 + 5 + padding_top);
+                })
+                .text(function (d) {
+                    return d.protein;
+                })
+                .style("font-size", "12px")
+                .style("font-family", "Arial");
 
             }); 
     });
 });
+
+//------------------------------------------------------------------------------------
+// HELPER FUNCTIONS
+//------------------------------------------------------------------------------------
 
 function get_cubic_path (start, end) {
     var x0 = start[0],
