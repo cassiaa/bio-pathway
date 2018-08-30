@@ -30,6 +30,8 @@ var most_rows = 0;
 var link_weight = 1;
 var link_color = "#000000";
 var link_gradient = 0;
+var node_bg_color = "#ffffff";
+var node_bg_gradient = 0;
 
 //Append an SVG to document body
 var svg = d3.select("body")
@@ -37,7 +39,7 @@ var svg = d3.select("body")
             .attr("width", width)
             .attr("height", height)
             .attr("id", "svg")
-            .attr("style", "background:#020202");
+            .attr("style", "background:#f4f4f4");
 
 //Get data from the files and put into arrays links and nodes, respectively
 d3.csv("nodes.csv", function (error1, data1) {
@@ -88,9 +90,8 @@ d3.csv("nodes.csv", function (error1, data1) {
         data2.forEach (function (d) {
             var temp = {
                 protein1: d.protein1,
-                weight1: parseFloat(d.weight1),
                 protein2: d.protein2,
-                weight2: parseFloat(d.weight2)
+                weight: parseFloat(d.weight)
             };
         
             links.push(temp);
@@ -133,6 +134,13 @@ d3.csv("nodes.csv", function (error1, data1) {
                 console.log("gradient: " + link_gradient);
             }
 
+            if (curr.mod == "node_bg_color") {
+                node_bg_color = curr.val;
+            }
+
+            if (curr.mod == "node_bg_gradient") {
+                node_bg_gradient = curr.val;
+            }
         }
 
         //Reconfigure the distance between boxes to fit the data
@@ -147,42 +155,32 @@ d3.csv("nodes.csv", function (error1, data1) {
         //         .enter()
         //         .append("line")
         //         .attr("x1", function (d) {
-        //             var idx_in = find_protein(d.protein1);
+        //             var idx_in = find_protein_idx(d.protein1);
         //             return (nodes[idx_in].col * (box_w+box_x_margin) + padding_left +box_w);
         //         })
         //         .attr("y1", function (d) {
-        //             var idx_in = find_protein(d.protein1);
+        //             var idx_in = find_protein_idx(d.protein1);
         //             return (nodes[idx_in].row*(box_h+box_y_margin) + padding_top+(box_h/2));
         //         })
         //         .attr("x2", function (d) {
-        //             var idx_out = find_protein(d.protein2);
+        //             var idx_out = find_protein_idx(d.protein2);
         //             return (nodes[idx_out].col * (box_w+box_x_margin) + padding_left);
         //         })
         //         .attr("y2", function (d) {
-        //             var idx_out = find_protein(d.protein2);
+        //             var idx_out = find_protein_idx(d.protein2);
         //             return (nodes[idx_out].row*(box_h+box_y_margin)+padding_top+(box_h/2));
         //         })
         //         .attr("stroke", "#000000");
 
         //Create bezier curves from start to end nodes
         //Created with help from: https://bl.ocks.org/PerterB/3ace54f8a5584f51f9d8
-
-        //calculate highest weight first
-        var max = -1;
-        for (var i = 0; i < links.length; i++) {
-            if (Math.abs(links[i].weight2) > max) {
-                max = Math.abs(links[i].weight2);
-            }
-        }
-        console.log("max = " + max);
-
         var cubic_lines = svg.selectAll("path")
                 .data(links)
                 .enter()
                 .append("path")
-                .attr("d", function (d, i) {
-                    var idx_in = find_protein(d.protein1);
-                    var idx_out = find_protein(d.protein2);
+                .attr("d", function (d) {
+                    var idx_in = find_protein_idx(d.protein1);
+                    var idx_out = find_protein_idx(d.protein2);
                     var startx = nodes[idx_in].col * (box_w+box_x_margin) + padding_left + box_w;
                     var starty = nodes[idx_in].row*(box_h+box_y_margin) + padding_top+(box_h/2);
                     var endx = nodes[idx_out].col * (box_w+box_x_margin) + padding_left;
@@ -195,25 +193,19 @@ d3.csv("nodes.csv", function (error1, data1) {
                     if (link_weight == 1) {
                         return link_weight;
                     } else {
-                        return Math.abs(d.weight2) * 3;
+                        return Math.abs(d.weight) * 3;
                     }
                 })
                 .attr("stroke", function (d) {
                     if (link_gradient == 0) {
                         return (link_color);
+                    
                     } else {
 
-                        //TODO: Must change so it doesn't hardcode domain
-
-                        var num_scale = d3.scaleLinear() 
-                            .domain([0,max])
-                            .range([0,1]);
-                        var num = num_scale(Math.abs(d.weight2));
-                        //var num = d3.interpolateNumber(0,3.5)(Math.abs(d.weight2));
-                        var rgb = d3.interpolateRgb("#ffffff", link_color)(num);
-                        return rgb;
+                        return find_rgb_scale(d.weight, "#000000", link_color);
                     }
                 })
+                .attr("opacity", 0.8)
                 ;
 
         //Draw node rectangles
@@ -232,7 +224,17 @@ d3.csv("nodes.csv", function (error1, data1) {
                 .attr("ry", 5)
                 .attr("width", box_w)
                 .attr("height", box_h)
-                .style("fill", "#FFFFFF")
+                .style("fill", function (d) {
+                    if (node_bg_gradient == 0) {
+                        return node_bg_color;
+                    } else {
+                        console.log("d.protein = " + d.protein);
+                        var p_idx = find_weight_idx(d.protein);
+                        console.log("p_idx = " + p_idx);
+                        var weight = links[p_idx].weight;
+                        return find_rgb_scale(weight, "#ffffff", node_bg_color);
+                    }
+                })
                 .style("stroke", "darkgray");
         
         //Text for nodes
@@ -281,10 +283,25 @@ function get_cubic_path (start, end) {
                 x3 + "," + y3 + " " +
                 x1 + "," + y1;
 }
+
+//NODES -> LINKS
+//Input: Protein name (from nodes array)
+//Output: Returns index of that protein in links.protein2 array, -1 if not found
+function find_weight_idx (protein) {
+    for (var i = 0; i < links.length; i++) {
+        if (links[i].protein2 == protein) {
+            console.log("index of protein2 = " + i);
+            return i;
+        }
+    }
+
+    return -1;
+}
     
+//LINKS -> NODES
 //Input: Protein name (from links array)
 //Output: Returns index of that protein in the nodes array or -1 if not found
-function find_protein (protein) {
+function find_protein_idx (protein) {
 
     for (var i = 0; i < nodes.length; i++) {
         if (nodes[i].protein == protein) {
@@ -419,6 +436,27 @@ function find_col_length (column) {
     console.log("col_length = " + col_length);
 
     return col_length;
+}
+
+//returns an rgb string calculated by the interpolation of a weight btwn two colors
+//Input: weight + two colors to interpolate between
+//Output: rgb string calculated for interpolated weight value btwn color1 and color2
+function find_rgb_scale (weight, color1, color2) {
+    
+    //calculate highest weight first
+    var max = -1;
+    for (var i = 0; i < links.length; i++) {
+        if (Math.abs(links[i].weight) > max) {
+            max = Math.abs(links[i].weight);
+        }
+    }
+
+    var num_scale = d3.scaleLinear() 
+    .domain([0,max])
+    .range([0,1]);
+    var num = num_scale(Math.abs(weight));
+    var rgb = d3.interpolateRgb(color1, color2)(num);
+    return rgb;
 }
 
 // // CODE FOR IMMEDIATE SVG LOAD--------------------------------------------

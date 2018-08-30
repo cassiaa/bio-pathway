@@ -3,3 +3,5 @@ justify,1
 link_weight,2
 link_color,#2b9758
 link_gradient,1
+node_bg_color,#2b9758
+node_bg_gradient,1
