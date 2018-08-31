@@ -4,8 +4,12 @@
 var padding_left = 50;
 var padding_top = 50;
 
+//size of sidebar
+var sidebar_w = 200;
+var sidebar_h = $(window).height()-15;
+
 //size of svg
-var width = $(window).width()-15;
+var width = $(window).width()-20-sidebar_w;
 var height = $(window).height()-15;
 
 //margin between boxes
@@ -32,6 +36,9 @@ var link_color = "#000000";
 var link_gradient = 0;
 var node_bg_color = "#ffffff";
 var node_bg_gradient = 0;
+
+$('#sidebar').height(sidebar_h);
+
 
 //Append an SVG to document body
 var svg = d3.select("body")
@@ -134,10 +141,14 @@ d3.csv("nodes.csv", function (error1, data1) {
                 console.log("gradient: " + link_gradient);
             }
 
+            //NODE_BG_COLOR: hex code for background color of nodes
             if (curr.mod == "node_bg_color") {
                 node_bg_color = curr.val;
             }
 
+            //NODE_BG_GRADIENT: 
+            //0: no gradient (solid)
+            //!0: use a gradient
             if (curr.mod == "node_bg_gradient") {
                 node_bg_gradient = curr.val;
             }

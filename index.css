@@ -1,0 +1,32 @@
+* {
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+  }
+
+#sidebar {
+    width: 200px;
+    float:left;
+    position: relative;
+    font-family: 'Arial';
+    padding: 15px;
+}
+
+#sidebar {
+    text-align: center;
+}
+
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+
+tr {
+    font-size: .7em;
+    line-height: 1.4em;
+    text-align: left;
+}
+
+td, th {
+    padding: 5px;
+}
