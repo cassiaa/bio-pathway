@@ -32,10 +32,12 @@ var most_rows = 0;
 
 //variables retrieved from atlas file
 var link_weight = 1;
+var link_type = 1;
 var link_color = "#000000";
 var link_gradient = 0;
 var node_bg_color = "#ffffff";
 var node_bg_gradient = 0;
+var node_r = 5;
 
 $('#sidebar').height(sidebar_h);
 
@@ -127,6 +129,13 @@ d3.csv("nodes.csv", function (error1, data1) {
                 link_weight = curr.val;
             }
 
+            //LINK_TYPE: determines if straight lines or bezier curves used
+            //0: straight lines
+            //1: bezier curves (default)
+            if (curr.mod === "link_type") {
+                link_type = curr.val;
+            }
+
             //LINK_COLOR: determines color of links between nodes
             //input is a hex value (default: #000000)
             if (curr.mod === "link_color") {
@@ -152,6 +161,14 @@ d3.csv("nodes.csv", function (error1, data1) {
             if (curr.mod == "node_bg_gradient") {
                 node_bg_gradient = curr.val;
             }
+
+            //NODE_ROUNDEDNESS:
+            //integer that specifies the radius of the node corners
+            //default = 5
+            if (curr.mod == "node_roundedness") {
+                node_r = curr.val;
+                console.log(node_r);
+            }
         }
 
         //Reconfigure the distance between boxes to fit the data
@@ -161,30 +178,32 @@ d3.csv("nodes.csv", function (error1, data1) {
         //DRAW SVG ELEMENTS---------------------------------------------------------
         
         //Straight line links between nodes
-        // var lines = svg.selectAll("line")
-        //         .data(links)
-        //         .enter()
-        //         .append("line")
-        //         .attr("x1", function (d) {
-        //             var idx_in = find_protein_idx(d.protein1);
-        //             return (nodes[idx_in].col * (box_w+box_x_margin) + padding_left +box_w);
-        //         })
-        //         .attr("y1", function (d) {
-        //             var idx_in = find_protein_idx(d.protein1);
-        //             return (nodes[idx_in].row*(box_h+box_y_margin) + padding_top+(box_h/2));
-        //         })
-        //         .attr("x2", function (d) {
-        //             var idx_out = find_protein_idx(d.protein2);
-        //             return (nodes[idx_out].col * (box_w+box_x_margin) + padding_left);
-        //         })
-        //         .attr("y2", function (d) {
-        //             var idx_out = find_protein_idx(d.protein2);
-        //             return (nodes[idx_out].row*(box_h+box_y_margin)+padding_top+(box_h/2));
-        //         })
-        //         .attr("stroke", "#000000");
-
+        /*
+        var lines = svg.selectAll("line")
+                .data(links)
+                .enter()
+                .append("line")
+                .attr("x1", function (d) {
+                    var idx_in = find_protein_idx(d.protein1);
+                    return (nodes[idx_in].col * (box_w+box_x_margin) + padding_left +box_w);
+                })
+                .attr("y1", function (d) {
+                    var idx_in = find_protein_idx(d.protein1);
+                    return (nodes[idx_in].row*(box_h+box_y_margin) + padding_top+(box_h/2));
+                })
+                .attr("x2", function (d) {
+                    var idx_out = find_protein_idx(d.protein2);
+                    return (nodes[idx_out].col * (box_w+box_x_margin) + padding_left);
+                })
+                .attr("y2", function (d) {
+                    var idx_out = find_protein_idx(d.protein2);
+                    return (nodes[idx_out].row*(box_h+box_y_margin)+padding_top+(box_h/2));
+                })
+                .attr("stroke", "#000000");
+                */
         //Create bezier curves from start to end nodes
         //Created with help from: https://bl.ocks.org/PerterB/3ace54f8a5584f51f9d8
+       
         var cubic_lines = svg.selectAll("path")
                 .data(links)
                 .enter()
@@ -197,7 +216,13 @@ d3.csv("nodes.csv", function (error1, data1) {
                     var endx = nodes[idx_out].col * (box_w+box_x_margin) + padding_left;
                     var endy = nodes[idx_out].row*(box_h+box_y_margin)+padding_top+(box_h/2);
 
-                    return get_cubic_path ([startx, starty], [endx, endy]);
+                    if (link_type == 0) {
+                        //straight line
+                        return get_straight_path([startx, starty], [endx, endy]);
+                    } else {
+                        return get_cubic_path ([startx, starty], [endx, endy]);
+                    }
+                    
                 })
                 .attr("fill", "none")
                 .attr("stroke-width", function (d) {
@@ -219,8 +244,47 @@ d3.csv("nodes.csv", function (error1, data1) {
                 .attr("opacity", 0.8)
                 ;
 
+        var node = svg.selectAll("g")
+                .data(nodes)
+                .enter()
+                .append("g")
+                .attr("transform", function (d) {
+                    var pos_x = d.col * (box_w + box_x_margin)+padding_left;
+                    var pos_y = d.row * (box_h + box_y_margin)+padding_top;
+
+                    return "translate(" + pos_x + "," + pos_y + ")";
+                })
+
+
+        var boxes = node.append("rect")
+                .attr("rx", node_r)
+                .attr("ry", node_r)
+                .attr("width", box_w)
+                .attr("height", box_h)
+                .style("fill", function (d) {
+                    if (node_bg_gradient == 0) {
+                        return node_bg_color;
+                    } else {
+                        var p_idx = find_weight_idx(d.protein);
+                        var weight = links[p_idx].weight;
+                        return find_rgb_scale(weight, "#ffffff", node_bg_color);
+                    }
+                })
+                .style("stroke", "darkgray");     
+                
+        var box_text = node.append("text")
+                .attr("x", 13)
+                .attr("y", box_h/2 + 5)
+                .text(function (d) {
+                    return d.protein;
+                })
+                .style("font-size", "12px")
+                .style("font-family", "Arial");
+
+            });         
+
         //Draw node rectangles
-        var boxes = svg.selectAll("rect")
+       /* var boxes = node.selectAll("rect")
                 .data(nodes)
                 .enter()
                 .append("rect")
@@ -231,8 +295,8 @@ d3.csv("nodes.csv", function (error1, data1) {
                 .attr("y", function (d) {
                     return (d.row * (box_h + box_y_margin)+padding_top);
                 })
-                .attr("rx", 5)
-                .attr("ry", 5)
+                .attr("rx", node_roundedness)
+                .attr("ry", node_roundedness)
                 .attr("width", box_w)
                 .attr("height", box_h)
                 .style("fill", function (d) {
@@ -265,13 +329,18 @@ d3.csv("nodes.csv", function (error1, data1) {
                 .style("font-size", "12px")
                 .style("font-family", "Arial");
 
-            }); 
+            }); */
     });
 });
 
 //------------------------------------------------------------------------------------
 // HELPER FUNCTIONS
 //------------------------------------------------------------------------------------
+
+function get_straight_path (start, end) {
+    return "M" + start[0] + "," + start[1] +
+            "L" + end[0] + "," + end[1];
+}
 
 function get_cubic_path (start, end) {
     var x0 = start[0],
