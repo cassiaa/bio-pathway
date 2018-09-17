@@ -1,7 +1,7 @@
 mod,val
 justify,1
-link_weight,2
-link_type,1
+link_weight,1
+link_type,2
 link_color,#000000
 link_gradient,0
 node_bg_color,#2b9758

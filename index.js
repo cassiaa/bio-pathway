@@ -51,8 +51,8 @@ var svg = d3.select("body")
             .attr("style", "background:#f4f4f4");
 
 //Get data from the files and put into arrays links and nodes, respectively
-d3.csv("nodes.csv", function (error1, data1) {
-    d3.csv("links.csv", function (error2, data2) {
+d3.csv("nodes3.csv", function (error1, data1) {
+    d3.csv("links3.csv", function (error2, data2) {
         d3.csv("atlas.csv", function (error3, data3) {
         
         //LOAD DATA------------------------------------------------------------------
@@ -177,30 +177,6 @@ d3.csv("nodes.csv", function (error1, data1) {
 
         //DRAW SVG ELEMENTS---------------------------------------------------------
         
-        //Straight line links between nodes
-        /*
-        var lines = svg.selectAll("line")
-                .data(links)
-                .enter()
-                .append("line")
-                .attr("x1", function (d) {
-                    var idx_in = find_protein_idx(d.protein1);
-                    return (nodes[idx_in].col * (box_w+box_x_margin) + padding_left +box_w);
-                })
-                .attr("y1", function (d) {
-                    var idx_in = find_protein_idx(d.protein1);
-                    return (nodes[idx_in].row*(box_h+box_y_margin) + padding_top+(box_h/2));
-                })
-                .attr("x2", function (d) {
-                    var idx_out = find_protein_idx(d.protein2);
-                    return (nodes[idx_out].col * (box_w+box_x_margin) + padding_left);
-                })
-                .attr("y2", function (d) {
-                    var idx_out = find_protein_idx(d.protein2);
-                    return (nodes[idx_out].row*(box_h+box_y_margin)+padding_top+(box_h/2));
-                })
-                .attr("stroke", "#000000");
-                */
         //Create bezier curves from start to end nodes
         //Created with help from: https://bl.ocks.org/PerterB/3ace54f8a5584f51f9d8
        
@@ -217,10 +193,17 @@ d3.csv("nodes.csv", function (error1, data1) {
                     var endy = nodes[idx_out].row*(box_h+box_y_margin)+padding_top+(box_h/2);
 
                     if (link_type == 0) {
-                        //straight line
                         return get_straight_path([startx, starty], [endx, endy]);
-                    } else {
+                    } else if (link_type == 1) {
                         return get_cubic_path ([startx, starty], [endx, endy]);
+                    } else {
+                        // var w = d.weight * 3;
+                        // if (endy < starty) {
+                        //     w *= -1;
+                        // } else if (endy == starty){
+                        //     w = 0;
+                        // }
+                        return get_bundled_cubic_path([startx, starty], [endx, endy]);
                     }
                     
                 })
@@ -229,7 +212,12 @@ d3.csv("nodes.csv", function (error1, data1) {
                     if (link_weight == 1) {
                         return link_weight;
                     } else {
-                        return Math.abs(d.weight) * 3;
+                        if (d.weight == 0) {
+                            return 1;
+                        }
+                        else { 
+                            return Math.abs(d.weight) * 3;
+                        }
                     }
                 })
                 .attr("stroke", function (d) {
@@ -244,6 +232,7 @@ d3.csv("nodes.csv", function (error1, data1) {
                 .attr("opacity", 0.8)
                 ;
 
+        //Create groups for the boxes and text
         var node = svg.selectAll("g")
                 .data(nodes)
                 .enter()
@@ -255,7 +244,7 @@ d3.csv("nodes.csv", function (error1, data1) {
                     return "translate(" + pos_x + "," + pos_y + ")";
                 })
 
-
+        //Create the nodes
         var boxes = node.append("rect")
                 .attr("rx", node_r)
                 .attr("ry", node_r)
@@ -271,7 +260,8 @@ d3.csv("nodes.csv", function (error1, data1) {
                     }
                 })
                 .style("stroke", "darkgray");     
-                
+           
+        //Add text to the nodes
         var box_text = node.append("text")
                 .attr("x", 13)
                 .attr("y", box_h/2 + 5)
@@ -279,57 +269,9 @@ d3.csv("nodes.csv", function (error1, data1) {
                     return d.protein;
                 })
                 .style("font-size", "12px")
-                .style("font-family", "Arial");
+                .style("font-family", "Roboto");
 
             });         
-
-        //Draw node rectangles
-       /* var boxes = node.selectAll("rect")
-                .data(nodes)
-                .enter()
-                .append("rect")
-                .attr("x", function (d) {
-                    console.log("drawing box");
-                    return (d.col * (box_w + box_x_margin)+padding_left);
-                })
-                .attr("y", function (d) {
-                    return (d.row * (box_h + box_y_margin)+padding_top);
-                })
-                .attr("rx", node_roundedness)
-                .attr("ry", node_roundedness)
-                .attr("width", box_w)
-                .attr("height", box_h)
-                .style("fill", function (d) {
-                    if (node_bg_gradient == 0) {
-                        return node_bg_color;
-                    } else {
-                        console.log("d.protein = " + d.protein);
-                        var p_idx = find_weight_idx(d.protein);
-                        console.log("p_idx = " + p_idx);
-                        var weight = links[p_idx].weight;
-                        return find_rgb_scale(weight, "#ffffff", node_bg_color);
-                    }
-                })
-                .style("stroke", "darkgray");
-        
-        //Text for nodes
-        var box_text = svg.selectAll("text")
-                .data(nodes)
-                .enter()
-                .append("text")
-                .attr("x", function (d) {
-                    return (d.col * (box_w + box_x_margin) + 13 + padding_left);
-                })
-                .attr("y", function (d) {
-                    return (d.row * (box_h + box_y_margin) + box_h/2 + 5 + padding_top);
-                })
-                .text(function (d) {
-                    return d.protein;
-                })
-                .style("font-size", "12px")
-                .style("font-family", "Arial");
-
-            }); */
     });
 });
 
@@ -362,6 +304,31 @@ function get_cubic_path (start, end) {
            " C" + x2 + "," + y2 + " " + 
                 x3 + "," + y3 + " " +
                 x1 + "," + y1;
+}
+
+function get_bundled_cubic_path (start, end) {
+    var x0 = start[0],
+        y0 = start[1],
+
+        x1 = end[0],
+        y1 = end[1],
+
+        xi = d3.interpolateNumber(x0, x1),
+        
+        a = xi(0.1),
+        b = y0,
+
+        x2 = xi(0.65),
+        y2 = y0, 
+
+        x3 = x2, 
+        y3 = y1;  
+        
+    return "M" + x0 + "," + y0 + 
+            " L" + a + "," + b + " " + 
+            " C" + x2 + "," + y2 + " " + 
+                    x3 + "," + y3 + " " + 
+                    x1 + "," + y1;
 }
 
 //NODES -> LINKS
@@ -482,6 +449,7 @@ function reconfigure_alignment() {
 }
 
 //takes a column index and finds the length of it
+//runtime: O(n) where n == nodes.length
 function find_col_length (column) {
     
     //index in the nodes array where column starts
